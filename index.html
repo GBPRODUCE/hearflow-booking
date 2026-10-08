@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>線上預約｜HearFlow</title>
+    <!-- 導入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 導入 Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        * { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-[100dvh] flex flex-col items-center justify-center p-4">
+
+    <!-- 預約表單卡片 -->
+    <div id="bookingCard" class="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden transform transition-all">
+        <!-- 頂部視覺區 -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10 text-center relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
+            
+            <!-- 🌟 動態顯示分店名稱 -->
+            <h1 class="text-3xl font-black text-white tracking-widest relative z-10 drop-shadow-md" id="displayStoreName">載入門市中...</h1>
+            <p class="text-blue-100 text-sm mt-2 font-medium relative z-10">線上預約系統</p>
+        </div>
+
+        <form id="bookingForm" onsubmit="submitBooking(event)" class="p-8 space-y-5">
+            <input type="hidden" id="storeCode" value="ALL">
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-1">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">您的姓名 *</label>
+                    <input type="text" id="guestName" required placeholder="王大明" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition">
+                </div>
+                <div class="col-span-1">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">聯絡電話 *</label>
+                    <input type="tel" id="guestPhone" required placeholder="0912-345-678" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition font-mono">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">預約項目 *</label>
+                <select id="appointType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition cursor-pointer">
+                    <option value="聽力檢測">🦻 免費聽力檢測</option>
+                    <option value="助聽器諮詢">🛒 助聽器選配與諮詢</option>
+                    <option value="設備保養調音">🔧 助聽器清潔與保養</option>
+                    <option value="其他服務">✨ 其他服務</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">希望日期 *</label>
+                    <input type="date" id="appointDate" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">希望時段 *</label>
+                    <!-- 🌟 替換為 24 小時制下拉選單 -->
+                    <select id="appointTime" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition font-mono cursor-pointer">
+                        <option value="">選擇時間</option>
+                        <!-- JS 會自動填入 09:00 ~ 20:30 -->
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">需求說明 (選填)</label>
+                <textarea id="guestNote" rows="3" placeholder="請簡述您的狀況，例如：右耳最近聽不清楚..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition text-slate-700"></textarea>
+            </div>
+
+            <button type="submit" id="btnSubmit" class="w-full py-4 bg-slate-900 text-white font-black rounded-xl hover:bg-slate-800 transition shadow-lg hover:shadow-xl active:scale-95 text-lg mt-2">
+                送出預約申請
+            </button>
+        </form>
+
+        <!-- 成功完成畫面 (預設隱藏) -->
+        <div id="successCard" class="hidden p-10 text-center flex-col items-center justify-center space-y-4">
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-2">✓</div>
+            <h2 class="text-2xl font-black text-slate-800 tracking-tight">預約送出成功！</h2>
+            <p class="text-slate-500 font-medium">門市人員已收到您的預約資訊。<br>我們將盡快與您聯繫確認最終時間。</p>
+            
+            <!-- 🌟 客戶加入行事曆按鈕 -->
+            <a id="addToCalendarBtn" target="_blank" href="#" class="mt-4 w-full py-3.5 bg-blue-50 border border-blue-200 text-blue-600 font-bold rounded-xl hover:bg-blue-100 transition flex items-center justify-center gap-2 shadow-sm">
+                🗓️ 將預約加入我的行事曆
+            </a>
+
+            <button onclick="window.location.reload()" class="w-full mt-2 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">完成並返回</button>
+        </div>
+    </div>
+
+    <!-- 腳註 -->
+    <div class="mt-8 text-center text-xs font-bold text-slate-400 tracking-widest">
+        POWERED BY HEARFLOW
+    </div>
+
+    <script>
+        // 初始化 Supabase
+        const SUPABASE_URL = 'https://rpfuwimbzkllebajsqbi.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_m-mlVCMy3RsiberoFywT1w_3FPpqkMm';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentStoreName = "HearFlow 預約中心";
+
+        // 🌟 改用 DOMContentLoaded 確保 DOM 載入後才執行，避免動態生成失效
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 1. 動態產生 24 小時制時間選項 (09:00 ~ 20:30)
+            const timeSelect = document.getElementById('appointTime');
+            if (timeSelect) {
+                timeSelect.innerHTML = '<option value="">請選擇預約時段</option>';
+                for (let h = 9; h <= 20; h++) {
+                    let hh = String(h).padStart(2, '0');
+                    timeSelect.innerHTML += `<option value="${hh}:00">${hh}:00</option>`;
+                    timeSelect.innerHTML += `<option value="${hh}:30">${hh}:30</option>`;
+                }
+            }
+
+            // 2. 日期防呆：不能選今天以前的日子
+            const dateInput = document.getElementById('appointDate');
+            if (dateInput) {
+                const today = new Date().toISOString().split('T')[0];
+                dateInput.setAttribute('min', today);
+            }
+
+            // 3. 抓取網址參數，若沒有則預設為 'CWT' 方便本地測試
+            const urlParams = new URLSearchParams(window.location.search);
+            const storeParam = urlParams.get('store') || 'CWT'; 
+            
+            const storeCode = storeParam.toUpperCase();
+            document.getElementById('storeCode').value = storeCode;
+            
+            try {
+                const { data, error } = await supabase
+                    .from('stores')
+                    .select('store_name')
+                    .eq('store_code', storeCode)
+                    .single();
+                    
+                if (data && data.store_name) {
+                    currentStoreName = data.store_name;
+                    document.getElementById('displayStoreName').innerText = currentStoreName;
+                } else {
+                    document.getElementById('displayStoreName').innerText = storeCode + ' 門市';
+                    currentStoreName = storeCode + ' 門市';
+                }
+            } catch (err) {
+                console.error("抓取分店失敗:", err);
+                document.getElementById('displayStoreName').innerText = 'HearFlow 預約中心';
+            }
+        });
+
+        async function submitBooking(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmit');
+            btn.innerHTML = '⏳ 傳送中...';
+            btn.disabled = true;
+
+            const name = document.getElementById('guestName').value.trim();
+            const phone = document.getElementById('guestPhone').value.trim();
+            const type = document.getElementById('appointType').value;
+            const date = document.getElementById('appointDate').value;
+            const time = document.getElementById('appointTime').value;
+            const note = document.getElementById('guestNote').value.trim();
+            const store = document.getElementById('storeCode').value;
+
+            const finalNote = `[線上新客] ${name} (${phone})\n${note ? '留言：' + note : '無其他留言'}`;
+
+            const payload = {
+                store_code: store,
+                appoint_date: date,
+                appoint_time: time,
+                type: type,
+                note: finalNote,
+                status: '待辦',
+                customer_code: null 
+            };
+
+            try {
+                // 1. 寫入資料庫
+                const { error } = await supabase.from('appointments').insert([payload]);
+                if (error) throw error;
+
+                // 2. 動態產生 Google 行事曆的專屬網址
+                const startD = new Date(`${date}T${time}:00`);
+                const endD = new Date(startD.getTime() + 60 * 60 * 1000); 
+
+                const sTime = startD.getFullYear().toString() + String(startD.getMonth()+1).padStart(2,'0') + String(startD.getDate()).padStart(2,'0') + 'T' + String(startD.getHours()).padStart(2,'0') + String(startD.getMinutes()).padStart(2,'0') + '00';
+                const eTime = endD.getFullYear().toString() + String(endD.getMonth()+1).padStart(2,'0') + String(endD.getDate()).padStart(2,'0') + 'T' + String(endD.getHours()).padStart(2,'0') + String(endD.getMinutes()).padStart(2,'0') + '00';
+                
+                const calTitle = `【${type}】預約 - ${currentStoreName}`;
+                const calDetails = `您已預約 HearFlow 服務。\n\n預約項目：${type}\n您的備註：${note || '無'}\n\n※ 門市人員會與您聯繫確認最終時間，請留意來電。`;
+                
+                const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calTitle)}&dates=${sTime}/${eTime}&details=${encodeURIComponent(calDetails)}&location=${encodeURIComponent(currentStoreName)}`;
+                
+                document.getElementById('addToCalendarBtn').href = gCalUrl;
+
+                // 3. 切換成功畫面
+                document.getElementById('bookingForm').classList.add('hidden');
+                document.getElementById('successCard').classList.remove('hidden');
+                document.getElementById('successCard').classList.add('flex');
+
+            } catch (err) {
+                alert('預約失敗，請稍後再試：' + err.message);
+                btn.innerHTML = '重新送出預約申請';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
