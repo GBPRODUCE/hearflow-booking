@@ -98,44 +98,35 @@
     </div>
 
    <script>
-        // 🌟 修正：變數名稱改為 supabaseClient，避免與官方套件(window.supabase)撞名崩潰
         const SUPABASE_URL = 'https://rpfuwimbzkllebajsqbi.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_m-mlVCMy3RsiberoFywT1w_3FPpqkMm';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentStoreName = "HearFlow 預約中心";
 
-        // 確保網頁元素全部載入後，才開始執行 JavaScript
         document.addEventListener('DOMContentLoaded', async () => {
-            
-            // 1. 動態產生 24 小時制時間選項 (09:00 ~ 16:30)
-            const timeSelect = document.getElementById('appointTime');
-            if (timeSelect) {
-                let optionsHtml = '<option value="">請選擇預約時段</option>';
-                for (let h = 9; h <= 16; h++) {
-                    let hh = String(h).padStart(2, '0');
-                    optionsHtml += `<option value="${hh}:00">${hh}:00</option>`;
-                    optionsHtml += `<option value="${hh}:30">${hh}:30</option>`;
-                }
-                timeSelect.innerHTML = optionsHtml;
-            }
-
-            // 2. 日期防呆：不能選今天以前的日子
+            // 1. 🌟 升級：日期防呆，最早只能預約「明天」
             const dateInput = document.getElementById('appointDate');
             if (dateInput) {
-                const today = new Date().toISOString().split('T')[0];
-                dateInput.setAttribute('min', today);
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1); // 加上 1 天
+                const tomorrowStr = tomorrow.toISOString().split('T')[0];
+                
+                dateInput.setAttribute('min', tomorrowStr); // 鎖定最早日期為明天
+                
+                dateInput.addEventListener('change', fetchAvailableTimes);
             }
+
+            // 2. 初始先載入預設的選單
+            generateDefaultTimes();
 
             // 3. 抓取網址參數
             const urlParams = new URLSearchParams(window.location.search);
-            const storeParam = urlParams.get('store') || 'test'; 
-            
-            // 寫入隱藏欄位供送出預約時使用 (轉大寫保持資料庫整齊)
+            const storeParam = urlParams.get('store') || 'CWT'; 
             const storeCodeUpper = storeParam.toUpperCase();
             document.getElementById('storeCode').value = storeCodeUpper;
             
-            // 4. 🌟 抓取分店名稱 (使用 .ilike 忽略大小寫，完美匹配 test 或 TEST)
+            // 4. 抓取分店名稱
             try {
                 const { data, error } = await supabaseClient
                     .from('stores')
@@ -143,8 +134,6 @@
                     .ilike('store_code', storeParam) 
                     .maybeSingle();
                     
-                if (error) throw error;
-
                 if (data && data.store_name) {
                     currentStoreName = data.store_name;
                     document.getElementById('displayStoreName').innerText = currentStoreName;
@@ -153,11 +142,93 @@
                     currentStoreName = storeCodeUpper + ' 門市';
                 }
             } catch (err) {
-                console.error("抓取分店失敗:", err);
                 document.getElementById('displayStoreName').innerText = storeCodeUpper + ' 門市';
                 currentStoreName = storeCodeUpper + ' 門市';
             }
         });
+
+        // 🌟 升級：產生預設時間表 (09:00 ~ 16:30)
+        function generateDefaultTimes() {
+            const timeSelect = document.getElementById('appointTime');
+            if (!timeSelect) return;
+            let optionsHtml = '<option value="">請先選擇日期</option>';
+            // 將 h <= 20 改為 h <= 16，這樣最後一個產生的時間就會是 16:30
+            for (let h = 9; h <= 16; h++) {
+                ['00', '30'].forEach(m => {
+                    let hh = String(h).padStart(2, '0');
+                    optionsHtml += `<option value="${hh}:${m}">${hh}:${m}</option>`;
+                });
+            }
+            timeSelect.innerHTML = optionsHtml;
+        }
+
+        // 核心功能：動態比對資料庫並鎖定已預約時段
+        async function fetchAvailableTimes() {
+            const dateStr = document.getElementById('appointDate').value;
+            const storeStr = document.getElementById('storeCode').value;
+            const timeSelect = document.getElementById('appointTime');
+            
+            if (!dateStr || !storeStr) return;
+
+            timeSelect.innerHTML = '<option value="">⏳ 查詢空檔中...</option>';
+            timeSelect.disabled = true;
+
+            try {
+                const { data, error } = await supabaseClient
+                    .rpc('get_booked_times', { target_store: storeStr, target_date: dateStr });
+
+                if (error) throw error;
+
+                const bookedTimes = (data || []).map(a => a.booked_time ? a.booked_time.substring(0, 5) : '');
+
+                const now = new Date();
+                const isToday = dateStr === now.toISOString().split('T')[0];
+                const currentHour = now.getHours();
+                const currentMin = now.getMinutes();
+
+                let optionsHtml = '<option value="">請選擇預約時段</option>';
+                let hasAvailable = false;
+
+                // 🌟 升級：將 h <= 20 改為 h <= 16，確保只產生 09:00 ~ 16:30 的時段
+                for (let h = 9; h <= 16; h++) {
+                    ['00', '30'].forEach(m => {
+                        let hh = String(h).padStart(2, '0');
+                        let timeString = `${hh}:${m}`;
+
+                        const isBooked = bookedTimes.includes(timeString);
+                        
+                        let isPast = false;
+                        if (isToday) {
+                            const optMin = parseInt(m);
+                            if (h < currentHour || (h === currentHour && optMin <= currentMin)) {
+                                isPast = true;
+                            }
+                        }
+
+                        if (isBooked) {
+                            optionsHtml += `<option value="${timeString}" disabled class="text-red-500 font-bold bg-slate-100">❌ ${timeString} (已預約)</option>`;
+                        } else if (isPast) {
+                            optionsHtml += `<option value="${timeString}" disabled class="text-slate-300">⏳ ${timeString} (已逾時)</option>`;
+                        } else {
+                            optionsHtml += `<option value="${timeString}">${timeString}</option>`;
+                            hasAvailable = true;
+                        }
+                    });
+                }
+
+                if (!hasAvailable) {
+                    timeSelect.innerHTML = '<option value="">❌ 本日已全數額滿</option>';
+                } else {
+                    timeSelect.innerHTML = optionsHtml;
+                }
+
+            } catch (err) {
+                console.error("查表失敗，切換回預設選單", err);
+                generateDefaultTimes(); 
+            } finally {
+                timeSelect.disabled = false;
+            }
+        }
 
         async function submitBooking(e) {
             e.preventDefault();
@@ -173,6 +244,13 @@
             const note = document.getElementById('guestNote').value.trim();
             const store = document.getElementById('storeCode').value;
 
+            if (!time) {
+                alert('請選擇有效的預約時段！');
+                btn.innerHTML = '送出預約申請';
+                btn.disabled = false;
+                return;
+            }
+
             const finalNote = `[線上新客] ${name} (${phone})\n${note ? '留言：' + note : '無其他留言'}`;
 
             const payload = {
@@ -186,11 +264,23 @@
             };
 
             try {
-                // 🌟 修正：改用 supabaseClient
+                const { data: checkData } = await supabaseClient
+                    .rpc('get_booked_times', { target_store: store, target_date: date });
+                    
+                if (checkData) {
+                    const isTaken = checkData.some(a => a.booked_time && a.booked_time.substring(0, 5) === time);
+                    if (isTaken) {
+                        alert('不好意思，這個時段剛剛被別人預約走了！請選擇其他時間。');
+                        await fetchAvailableTimes(); 
+                        btn.innerHTML = '送出預約申請';
+                        btn.disabled = false;
+                        return;
+                    }
+                }
+
                 const { error } = await supabaseClient.from('appointments').insert([payload]);
                 if (error) throw error;
 
-                // 動態產生 Google 行事曆的專屬網址
                 const startD = new Date(`${date}T${time}:00`);
                 const endD = new Date(startD.getTime() + 60 * 60 * 1000); 
 
@@ -204,7 +294,6 @@
                 
                 document.getElementById('addToCalendarBtn').href = gCalUrl;
 
-                // 切換成功畫面
                 document.getElementById('bookingForm').classList.add('hidden');
                 document.getElementById('successCard').classList.remove('hidden');
                 document.getElementById('successCard').classList.add('flex');
