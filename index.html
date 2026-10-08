@@ -105,28 +105,24 @@
         let currentStoreName = "HearFlow 預約中心";
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // 1. 🌟 升級：日期防呆，最早只能預約「明天」
+            // 1. 日期防呆：最早只能預約「明天」
             const dateInput = document.getElementById('appointDate');
             if (dateInput) {
                 const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1); // 加上 1 天
+                tomorrow.setDate(tomorrow.getDate() + 1);
                 const tomorrowStr = tomorrow.toISOString().split('T')[0];
                 
-                dateInput.setAttribute('min', tomorrowStr); // 鎖定最早日期為明天
-                
+                dateInput.setAttribute('min', tomorrowStr); 
                 dateInput.addEventListener('change', fetchAvailableTimes);
             }
 
-            // 2. 初始先載入預設的選單
             generateDefaultTimes();
 
-            // 3. 抓取網址參數
             const urlParams = new URLSearchParams(window.location.search);
-            const storeParam = urlParams.get('store') || 'CWT'; 
+            const storeParam = urlParams.get('store') || 'test'; 
             const storeCodeUpper = storeParam.toUpperCase();
             document.getElementById('storeCode').value = storeCodeUpper;
             
-            // 4. 抓取分店名稱
             try {
                 const { data, error } = await supabaseClient
                     .from('stores')
@@ -147,12 +143,11 @@
             }
         });
 
-        // 🌟 升級：產生預設時間表 (09:00 ~ 16:30)
+        // 預設產生的常規營業時間 (萬一網路出錯時的保底機制)
         function generateDefaultTimes() {
             const timeSelect = document.getElementById('appointTime');
             if (!timeSelect) return;
             let optionsHtml = '<option value="">請先選擇日期</option>';
-            // 將 h <= 20 改為 h <= 16，這樣最後一個產生的時間就會是 16:30
             for (let h = 9; h <= 16; h++) {
                 ['00', '30'].forEach(m => {
                     let hh = String(h).padStart(2, '0');
@@ -162,7 +157,7 @@
             timeSelect.innerHTML = optionsHtml;
         }
 
-        // 核心功能：動態比對資料庫並鎖定已預約時段
+        // 🌟 [終極進化] 智慧雙重查表：查營業時間 + 查衝堂預約
         async function fetchAvailableTimes() {
             const dateStr = document.getElementById('appointDate').value;
             const storeStr = document.getElementById('storeCode').value;
@@ -170,16 +165,46 @@
             
             if (!dateStr || !storeStr) return;
 
-            timeSelect.innerHTML = '<option value="">⏳ 查詢空檔中...</option>';
+            timeSelect.innerHTML = '<option value="">⏳ 查詢門市營業時間與空檔中...</option>';
             timeSelect.disabled = true;
 
             try {
-                const { data, error } = await supabaseClient
+                // 🕵️ 第一步：去問「這家店、這天」有沒有營業？幾點開關門？
+                const { data: hoursData, error: hoursError } = await supabaseClient
+                    .from('store_business_hours')
+                    .select('*')
+                    .eq('store_code', storeStr)
+                    .eq('target_date', dateStr)
+                    .maybeSingle();
+
+                // 設定預設營業時間 (若 Google 還沒同步過這天，就用預設值 09:00~16:30)
+                let isClosed = false;
+                let openTime = "09:00"; 
+                let closeTime = "16:30";
+                let holidayNote = "";
+
+                if (hoursData) {
+                    if (hoursData.is_closed) {
+                        isClosed = true;
+                        holidayNote = hoursData.note || '門市公休';
+                    } else {
+                        // 抓取設定的開關門時間，並取前 5 碼 (例如 "09:00:00" 變成 "09:00")
+                        if (hoursData.open_time) openTime = hoursData.open_time.substring(0, 5);
+                        if (hoursData.close_time) closeTime = hoursData.close_time.substring(0, 5);
+                    }
+                }
+
+                // 🛑 情況 A：如果查到這天是公休，直接整天鎖死！不往下跑了。
+                if (isClosed) {
+                    timeSelect.innerHTML = `<option value="">❌ 本日 ${holidayNote}</option>`;
+                    return; // 提早結束
+                }
+
+                // 🕵️ 第二步：門市有開，接著去問「已經被預約走的時間」
+                const { data: bookedData, error: bookedError } = await supabaseClient
                     .rpc('get_booked_times', { target_store: storeStr, target_date: dateStr });
 
-                if (error) throw error;
-
-                const bookedTimes = (data || []).map(a => a.booked_time ? a.booked_time.substring(0, 5) : '');
+                const bookedTimes = (bookedData || []).map(a => a.booked_time ? a.booked_time.substring(0, 5) : '');
 
                 const now = new Date();
                 const isToday = dateStr === now.toISOString().split('T')[0];
@@ -189,35 +214,39 @@
                 let optionsHtml = '<option value="">請選擇預約時段</option>';
                 let hasAvailable = false;
 
-                // 🌟 升級：將 h <= 20 改為 h <= 16，確保只產生 09:00 ~ 16:30 的時段
-                for (let h = 9; h <= 16; h++) {
+                // 擴大迴圈範圍 (08:00 ~ 21:30)，讓它能適應 Google 上設定的各種彈性營業時間
+                for (let h = 8; h <= 21; h++) {
                     ['00', '30'].forEach(m => {
                         let hh = String(h).padStart(2, '0');
                         let timeString = `${hh}:${m}`;
 
-                        const isBooked = bookedTimes.includes(timeString);
-                        
-                        let isPast = false;
-                        if (isToday) {
-                            const optMin = parseInt(m);
-                            if (h < currentHour || (h === currentHour && optMin <= currentMin)) {
-                                isPast = true;
+                        // 判斷 1：這個時間有沒有落在「開門~關門」的範圍內？
+                        if (timeString >= openTime && timeString <= closeTime) {
+                            
+                            const isBooked = bookedTimes.includes(timeString);
+                            let isPast = false;
+                            
+                            if (isToday) {
+                                const optMin = parseInt(m);
+                                if (h < currentHour || (h === currentHour && optMin <= currentMin)) {
+                                    isPast = true;
+                                }
                             }
-                        }
 
-                        if (isBooked) {
-                            optionsHtml += `<option value="${timeString}" disabled class="text-red-500 font-bold bg-slate-100">❌ ${timeString} (已預約)</option>`;
-                        } else if (isPast) {
-                            optionsHtml += `<option value="${timeString}" disabled class="text-slate-300">⏳ ${timeString} (已逾時)</option>`;
-                        } else {
-                            optionsHtml += `<option value="${timeString}">${timeString}</option>`;
-                            hasAvailable = true;
+                            if (isBooked) {
+                                optionsHtml += `<option value="${timeString}" disabled class="text-red-500 font-bold bg-slate-100">❌ ${timeString} (已預約)</option>`;
+                            } else if (isPast) {
+                                optionsHtml += `<option value="${timeString}" disabled class="text-slate-300">⏳ ${timeString} (已逾時)</option>`;
+                            } else {
+                                optionsHtml += `<option value="${timeString}">${timeString}</option>`;
+                                hasAvailable = true;
+                            }
                         }
                     });
                 }
 
                 if (!hasAvailable) {
-                    timeSelect.innerHTML = '<option value="">❌ 本日已全數額滿</option>';
+                    timeSelect.innerHTML = '<option value="">❌ 本日預約已全數額滿</option>';
                 } else {
                     timeSelect.innerHTML = optionsHtml;
                 }
@@ -226,7 +255,8 @@
                 console.error("查表失敗，切換回預設選單", err);
                 generateDefaultTimes(); 
             } finally {
-                timeSelect.disabled = false;
+                // 確保就算公休，下拉選單也能維持不可點擊狀態
+                timeSelect.disabled = timeSelect.innerHTML.includes('公休') || timeSelect.innerHTML.includes('額滿');
             }
         }
 
@@ -264,6 +294,7 @@
             };
 
             try {
+                // 送出前的終極防呆：確保沒人搶走
                 const { data: checkData } = await supabaseClient
                     .rpc('get_booked_times', { target_store: store, target_date: date });
                     
