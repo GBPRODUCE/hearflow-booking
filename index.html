@@ -60,10 +60,9 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">希望時段 *</label>
-                    <!-- 🌟 替換為 24 小時制下拉選單 -->
+                    <!-- 🌟 確保這裡是 select 而不是 input，且裡面是乾淨的 -->
                     <select id="appointTime" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition font-mono cursor-pointer">
-                        <option value="">選擇時間</option>
-                        <!-- JS 會自動填入 09:00 ~ 20:30 -->
+                        <option value="">請選擇預約時段</option>
                     </select>
                 </div>
             </div>
@@ -98,25 +97,27 @@
         POWERED BY HEARFLOW
     </div>
 
-    <script>
-        // 初始化 Supabase
+   <script>
+        // 🌟 修正：變數名稱改為 supabaseClient，避免與官方套件(window.supabase)撞名崩潰
         const SUPABASE_URL = 'https://rpfuwimbzkllebajsqbi.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_m-mlVCMy3RsiberoFywT1w_3FPpqkMm';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentStoreName = "HearFlow 預約中心";
 
-        // 🌟 改用 DOMContentLoaded 確保 DOM 載入後才執行，避免動態生成失效
+        // 確保網頁元素全部載入後，才開始執行 JavaScript
         document.addEventListener('DOMContentLoaded', async () => {
-            // 1. 動態產生 24 小時制時間選項 (09:00 ~ 20:30)
+            
+            // 1. 動態產生 24 小時制時間選項 (09:00 ~ 16:30)
             const timeSelect = document.getElementById('appointTime');
             if (timeSelect) {
-                timeSelect.innerHTML = '<option value="">請選擇預約時段</option>';
-                for (let h = 9; h <= 20; h++) {
+                let optionsHtml = '<option value="">請選擇預約時段</option>';
+                for (let h = 9; h <= 16; h++) {
                     let hh = String(h).padStart(2, '0');
-                    timeSelect.innerHTML += `<option value="${hh}:00">${hh}:00</option>`;
-                    timeSelect.innerHTML += `<option value="${hh}:30">${hh}:30</option>`;
+                    optionsHtml += `<option value="${hh}:00">${hh}:00</option>`;
+                    optionsHtml += `<option value="${hh}:30">${hh}:30</option>`;
                 }
+                timeSelect.innerHTML = optionsHtml;
             }
 
             // 2. 日期防呆：不能選今天以前的日子
@@ -126,30 +127,35 @@
                 dateInput.setAttribute('min', today);
             }
 
-            // 3. 抓取網址參數，若沒有則預設為 'CWT' 方便本地測試
+            // 3. 抓取網址參數
             const urlParams = new URLSearchParams(window.location.search);
-            const storeParam = urlParams.get('store') || 'CWT'; 
+            const storeParam = urlParams.get('store') || 'test'; 
             
-            const storeCode = storeParam.toUpperCase();
-            document.getElementById('storeCode').value = storeCode;
+            // 寫入隱藏欄位供送出預約時使用 (轉大寫保持資料庫整齊)
+            const storeCodeUpper = storeParam.toUpperCase();
+            document.getElementById('storeCode').value = storeCodeUpper;
             
+            // 4. 🌟 抓取分店名稱 (使用 .ilike 忽略大小寫，完美匹配 test 或 TEST)
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('stores')
                     .select('store_name')
-                    .eq('store_code', storeCode)
-                    .single();
+                    .ilike('store_code', storeParam) 
+                    .maybeSingle();
                     
+                if (error) throw error;
+
                 if (data && data.store_name) {
                     currentStoreName = data.store_name;
                     document.getElementById('displayStoreName').innerText = currentStoreName;
                 } else {
-                    document.getElementById('displayStoreName').innerText = storeCode + ' 門市';
-                    currentStoreName = storeCode + ' 門市';
+                    document.getElementById('displayStoreName').innerText = storeCodeUpper + ' 門市';
+                    currentStoreName = storeCodeUpper + ' 門市';
                 }
             } catch (err) {
                 console.error("抓取分店失敗:", err);
-                document.getElementById('displayStoreName').innerText = 'HearFlow 預約中心';
+                document.getElementById('displayStoreName').innerText = storeCodeUpper + ' 門市';
+                currentStoreName = storeCodeUpper + ' 門市';
             }
         });
 
@@ -180,11 +186,11 @@
             };
 
             try {
-                // 1. 寫入資料庫
-                const { error } = await supabase.from('appointments').insert([payload]);
+                // 🌟 修正：改用 supabaseClient
+                const { error } = await supabaseClient.from('appointments').insert([payload]);
                 if (error) throw error;
 
-                // 2. 動態產生 Google 行事曆的專屬網址
+                // 動態產生 Google 行事曆的專屬網址
                 const startD = new Date(`${date}T${time}:00`);
                 const endD = new Date(startD.getTime() + 60 * 60 * 1000); 
 
@@ -198,7 +204,7 @@
                 
                 document.getElementById('addToCalendarBtn').href = gCalUrl;
 
-                // 3. 切換成功畫面
+                // 切換成功畫面
                 document.getElementById('bookingForm').classList.add('hidden');
                 document.getElementById('successCard').classList.remove('hidden');
                 document.getElementById('successCard').classList.add('flex');
