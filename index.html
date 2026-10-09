@@ -1,51 +1,53 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>線上預約｜HearFlow</title>
-    <!-- 導入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 導入 Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-	<!-- 瀏覽器分頁小圖示 (Favicon) -->
     <link rel="icon" type="image/png" href="favicon.png">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
         * { -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
+
 <body class="bg-slate-100 min-h-[100dvh] flex flex-col items-center justify-center p-4">
 
-    <!-- 預約表單卡片 -->
     <div id="bookingCard" class="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden transform transition-all">
-        <!-- 頂部視覺區 -->
+
         <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10 text-center relative overflow-hidden">
             <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
-            
-            <!-- 🌟 動態顯示分店名稱 -->
             <h1 class="text-3xl font-black text-white tracking-widest relative z-10 drop-shadow-md" id="displayStoreName">載入門市中...</h1>
             <p class="text-blue-100 text-sm mt-2 font-medium relative z-10">線上預約系統</p>
         </div>
 
         <form id="bookingForm" onsubmit="submitBooking(event)" class="p-8 space-y-5">
-            <input type="hidden" id="storeCode" value="ALL">
+            <input type="hidden" id="storeCode" value="">
 
             <div class="grid grid-cols-2 gap-4">
-                <div class="col-span-1">
+                <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">您的姓名 *</label>
-                    <input type="text" id="guestName" required placeholder="王大明" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition">
+                    <input type="text" id="guestName" required placeholder="王大明"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition">
                 </div>
-                <div class="col-span-1">
+                <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">聯絡電話 *</label>
-                    <input type="tel" id="guestPhone" required placeholder="0912-345-678" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition font-mono">
+                    <input type="tel" id="guestPhone" required placeholder="0912-345-678"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition">
                 </div>
             </div>
 
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">預約項目 *</label>
-                <select id="appointType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition cursor-pointer">
+                <select id="appointType" required
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition cursor-pointer">
                     <option value="聽力檢測">🦻 免費聽力檢測</option>
                     <option value="助聽器諮詢">🛒 助聽器選配與諮詢</option>
                     <option value="設備保養調音">🔧 助聽器清潔與保養</option>
@@ -56,232 +58,377 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">希望日期 *</label>
-                    <input type="date" id="appointDate" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition cursor-pointer">
+                    <input type="date" id="appointDate" required
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition cursor-pointer">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">希望時段 *</label>
-                    <!-- 🌟 確保這裡是 select 而不是 input，且裡面是乾淨的 -->
-                    <select id="appointTime" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition font-mono cursor-pointer">
-                        <option value="">請選擇預約時段</option>
+                    <select id="appointTime" required
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 transition cursor-pointer">
+                        <option value="">請先選擇日期</option>
                     </select>
                 </div>
             </div>
 
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">需求說明 (選填)</label>
-                <textarea id="guestNote" rows="3" placeholder="請簡述您的狀況，例如：右耳最近聽不清楚..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition text-slate-700"></textarea>
+                <textarea id="guestNote" rows="3" placeholder="請簡述您的狀況，例如：右耳最近聽不清楚..."
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition text-slate-700"></textarea>
             </div>
 
-            <button type="submit" id="btnSubmit" class="w-full py-4 bg-slate-900 text-white font-black rounded-xl hover:bg-slate-800 transition shadow-lg hover:shadow-xl active:scale-95 text-lg mt-2">
+            <button type="submit" id="btnSubmit"
+                class="w-full py-4 bg-slate-900 text-white font-black rounded-xl hover:bg-slate-800 transition shadow-lg active:scale-95 text-lg mt-2">
                 送出預約申請
             </button>
         </form>
 
-        <!-- 成功完成畫面 (預設隱藏) -->
         <div id="successCard" class="hidden p-10 text-center flex-col items-center justify-center space-y-4">
             <div class="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-2">✓</div>
             <h2 class="text-2xl font-black text-slate-800 tracking-tight">預約送出成功！</h2>
             <p class="text-slate-500 font-medium">門市人員已收到您的預約資訊。<br>我們將盡快與您聯繫確認最終時間。</p>
-            
-            <!-- 🌟 客戶加入行事曆按鈕 -->
-            <a id="addToCalendarBtn" target="_blank" href="#" class="mt-4 w-full py-3.5 bg-blue-50 border border-blue-200 text-blue-600 font-bold rounded-xl hover:bg-blue-100 transition flex items-center justify-center gap-2 shadow-sm">
+
+            <a id="addToCalendarBtn" target="_blank" rel="noopener noreferrer" href="#"
+                class="mt-4 w-full py-3.5 bg-blue-50 border border-blue-200 text-blue-600 font-bold rounded-xl hover:bg-blue-100 transition flex items-center justify-center gap-2 shadow-sm">
                 🗓️ 將預約加入我的行事曆
             </a>
 
-            <button onclick="window.location.reload()" class="w-full mt-2 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">完成並返回</button>
+            <button type="button" onclick="window.location.reload()"
+                class="w-full mt-2 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">
+                完成並返回
+            </button>
         </div>
     </div>
 
-    <!-- 腳註 -->
     <div class="mt-8 text-center text-xs font-bold text-slate-400 tracking-widest">
         POWERED BY HEARFLOW
     </div>
 
-   <script>
-        const SUPABASE_URL = 'https://rpfuwimbzkllebajsqbi.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_m-mlVCMy3RsiberoFywT1w_3FPpqkMm';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+    const SUPABASE_URL = 'https://rpfuwimbzkllebajsqbi.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_m-mlVCMy3RsiberoFywT1w_3FPpqkMm';
+    const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+    );
 
-        let currentStoreName = "HearFlow 預約中心";
+    let currentStoreName = 'HearFlow 預約中心';
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // 1. 日期防呆：最早只能預約「明天」
-            const dateInput = document.getElementById('appointDate');
-            if (dateInput) {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const tomorrowStr = tomorrow.toISOString().split('T')[0];
-                
-                dateInput.setAttribute('min', tomorrowStr); 
-                dateInput.addEventListener('change', fetchAvailableTimes);
-            }
+    const TIME_SELECT_ID = 'appointTime';
 
-            generateDefaultTimes();
+    // 使用本地日期，避免 UTC 時區造成日期偏移
+    function formatLocalDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const storeParam = urlParams.get('store') || 'test'; 
-            const storeCodeUpper = storeParam.toUpperCase();
-            document.getElementById('storeCode').value = storeCodeUpper;
-            
-            try {
-                const { data, error } = await supabaseClient
-                    .from('stores')
-                    .select('store_name')
-                    .ilike('store_code', storeParam) 
-                    .maybeSingle();
-                    
-                if (data && data.store_name) {
-                    currentStoreName = data.store_name;
-                    document.getElementById('displayStoreName').innerText = currentStoreName;
-                } else {
-                    document.getElementById('displayStoreName').innerText = storeCodeUpper + ' 門市';
-                    currentStoreName = storeCodeUpper + ' 門市';
-                }
-            } catch (err) {
-                document.getElementById('displayStoreName').innerText = storeCodeUpper + ' 門市';
-                currentStoreName = storeCodeUpper + ' 門市';
-            }
+    function getWeekdayName(targetDate) {
+        // 以本地日期解析星期
+        const date = new Date(`${targetDate}T12:00:00`);
+
+        const weekdays = [
+            'SUNDAY',
+            'MONDAY',
+            'TUESDAY',
+            'WEDNESDAY',
+            'THURSDAY',
+            'FRIDAY',
+            'SATURDAY'
+        ];
+
+        return weekdays[date.getDay()];
+    }
+
+    function normalizeWeekday(value) {
+        return String(value || '').trim().toUpperCase();
+    }
+
+    function setTimeMessage(message) {
+        const select = document.getElementById(TIME_SELECT_ID);
+        select.innerHTML = '';
+
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = message;
+        select.appendChild(option);
+    }
+
+    function generateDefaultTimes() {
+        setTimeMessage('請先選擇日期');
+    }
+
+    function renderAvailableTimes(times) {
+        const select = document.getElementById(TIME_SELECT_ID);
+        select.innerHTML = '';
+
+        const firstOption = document.createElement('option');
+        firstOption.value = '';
+
+        if (times.length === 0) {
+            firstOption.textContent = '此日期沒有可預約時段';
+            select.appendChild(firstOption);
+            return;
+        }
+
+        firstOption.textContent = '請選擇預約時段';
+        select.appendChild(firstOption);
+
+        times.forEach(time => {
+            const option = document.createElement('option');
+            option.value = time;
+            option.textContent = time;
+            select.appendChild(option);
         });
+    }
 
-        // 預設產生的常規營業時間 (萬一網路出錯時的保底機制)
-        function generateDefaultTimes() {
-            const timeSelect = document.getElementById('appointTime');
-            if (!timeSelect) return;
-            let optionsHtml = '<option value="">請先選擇日期</option>';
-            for (let h = 9; h <= 16; h++) {
-                ['00', '30'].forEach(m => {
-                    let hh = String(h).padStart(2, '0');
-                    optionsHtml += `<option value="${hh}:${m}">${hh}:${m}</option>`;
-                });
+    
+async function checkDateOpen(store, date) {
+    // 1. 先查詢特殊營業日設定
+    const { data: specialDay, error: specialError } =
+        await supabaseClient
+            .from('store_business_hours')
+            .select('is_closed')
+            .eq('store_code', store)
+            .eq('target_date', date)
+            .maybeSingle();
+
+    if (specialError) {
+        throw new Error(
+            '查詢特殊營業日失敗：' + specialError.message
+        );
+    }
+
+    // 2. 特殊日期優先
+    if (specialDay !== null) {
+        return {
+            isOpen: specialDay.is_closed !== true,
+            message: specialDay.is_closed === true
+                ? '此日期為特殊公休日'
+                : ''
+        };
+    }
+
+    // 3. 沒有特殊日期資料，才查每週固定營業日
+    const weekday = getWeekdayName(date);
+
+    const { data: regularDay, error: regularError } =
+        await supabaseClient
+            .from('store_regular_hours')
+            .select('day_of_week')
+            .eq('store_code', store)
+            .eq('day_of_week', weekday)
+            .limit(1);
+
+    if (regularError) {
+        throw new Error(
+            '查詢每週固定營業日失敗：' + regularError.message
+        );
+    }
+
+    // 4. 有紀錄就是營業日；沒有紀錄就是公休
+    const isOpen = Array.isArray(regularDay) &&
+                   regularDay.length > 0;
+
+    console.log('分店代碼：', store);
+    console.log('選擇日期：', date);
+    console.log('星期：', weekday);
+    console.log('固定營業日查詢結果：', regularDay);
+    console.log('是否營業：', isOpen);
+
+    return {
+        isOpen,
+        message: isOpen ? '' : '此日期為每週固定公休日'
+    };
+}
+
+    // 與原本送出預約時使用相同的 RPC 參數名稱
+    async function getBookedTimes(store, date) {
+        const { data, error } = await supabaseClient.rpc(
+            'get_booked_times',
+            {
+                target_store: store,
+                target_date: date
             }
-            timeSelect.innerHTML = optionsHtml;
+        );
+
+        if (error) {
+            throw new Error('查詢已預約時段失敗：' + error.message);
         }
 
-        // 🌟 [終極進化] 智慧雙重查表：查營業時間 + 查衝堂預約
-        async function fetchAvailableTimes() {
-            const dateStr = document.getElementById('appointDate').value;
-            const storeStr = document.getElementById('storeCode').value;
-            const timeSelect = document.getElementById('appointTime');
-            
-            if (!dateStr || !storeStr) return;
+        return data || [];
+    }
 
-            timeSelect.innerHTML = '<option value="">⏳ 查詢門市營業時間與空檔中...</option>';
-            timeSelect.disabled = true;
-
-            try {
-                // 🕵️ 第一步：去問「這家店、這天」有沒有營業？幾點開關門？
-                const { data: hoursData, error: hoursError } = await supabaseClient
-                    .from('store_business_hours')
-                    .select('*')
-                    .eq('store_code', storeStr)
-                    .eq('target_date', dateStr)
-                    .maybeSingle();
-
-                // 設定預設營業時間 (若 Google 還沒同步過這天，就用預設值 09:00~16:30)
-                let isClosed = false;
-                let openTime = "09:00"; 
-                let closeTime = "16:30";
-                let holidayNote = "";
-
-                if (hoursData) {
-                    if (hoursData.is_closed) {
-                        isClosed = true;
-                        holidayNote = hoursData.note || '門市公休';
-                    } else {
-                        // 抓取設定的開關門時間，並取前 5 碼 (例如 "09:00:00" 變成 "09:00")
-                        if (hoursData.open_time) openTime = hoursData.open_time.substring(0, 5);
-                        if (hoursData.close_time) closeTime = hoursData.close_time.substring(0, 5);
-                    }
-                }
-
-                // 🛑 情況 A：如果查到這天是公休，直接整天鎖死！不往下跑了。
-                if (isClosed) {
-                    timeSelect.innerHTML = `<option value="">❌ 本日 ${holidayNote}</option>`;
-                    return; // 提早結束
-                }
-
-                // 🕵️ 第二步：門市有開，接著去問「已經被預約走的時間」
-                const { data: bookedData, error: bookedError } = await supabaseClient
-                    .rpc('get_booked_times', { target_store: storeStr, target_date: dateStr });
-
-                const bookedTimes = (bookedData || []).map(a => a.booked_time ? a.booked_time.substring(0, 5) : '');
-
-                const now = new Date();
-                const isToday = dateStr === now.toISOString().split('T')[0];
-                const currentHour = now.getHours();
-                const currentMin = now.getMinutes();
-
-                let optionsHtml = '<option value="">請選擇預約時段</option>';
-                let hasAvailable = false;
-
-                // 擴大迴圈範圍 (08:00 ~ 21:30)，讓它能適應 Google 上設定的各種彈性營業時間
-                for (let h = 8; h <= 21; h++) {
-                    ['00', '30'].forEach(m => {
-                        let hh = String(h).padStart(2, '0');
-                        let timeString = `${hh}:${m}`;
-
-                        // 判斷 1：這個時間有沒有落在「開門~關門」的範圍內？
-                        if (timeString >= openTime && timeString <= closeTime) {
-                            
-                            const isBooked = bookedTimes.includes(timeString);
-                            let isPast = false;
-                            
-                            if (isToday) {
-                                const optMin = parseInt(m);
-                                if (h < currentHour || (h === currentHour && optMin <= currentMin)) {
-                                    isPast = true;
-                                }
-                            }
-
-                            if (isBooked) {
-                                optionsHtml += `<option value="${timeString}" disabled class="text-red-500 font-bold bg-slate-100">❌ ${timeString} (已預約)</option>`;
-                            } else if (isPast) {
-                                optionsHtml += `<option value="${timeString}" disabled class="text-slate-300">⏳ ${timeString} (已逾時)</option>`;
-                            } else {
-                                optionsHtml += `<option value="${timeString}">${timeString}</option>`;
-                                hasAvailable = true;
-                            }
-                        }
-                    });
-                }
-
-                if (!hasAvailable) {
-                    timeSelect.innerHTML = '<option value="">❌ 本日預約已全數額滿</option>';
-                } else {
-                    timeSelect.innerHTML = optionsHtml;
-                }
-
-            } catch (err) {
-                console.error("查表失敗，切換回預設選單", err);
-                generateDefaultTimes(); 
-            } finally {
-                // 確保就算公休，下拉選單也能維持不可點擊狀態
-                timeSelect.disabled = timeSelect.innerHTML.includes('公休') || timeSelect.innerHTML.includes('額滿');
-            }
+    function normalizeBookedTime(item) {
+        if (typeof item === 'string') {
+            return item.slice(0, 5);
         }
 
-        async function submitBooking(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnSubmit');
-            btn.innerHTML = '⏳ 傳送中...';
-            btn.disabled = true;
+        if (!item || typeof item !== 'object') {
+            return '';
+        }
 
-            const name = document.getElementById('guestName').value.trim();
-            const phone = document.getElementById('guestPhone').value.trim();
-            const type = document.getElementById('appointType').value;
-            const date = document.getElementById('appointDate').value;
-            const time = document.getElementById('appointTime').value;
-            const note = document.getElementById('guestNote').value.trim();
-            const store = document.getElementById('storeCode').value;
+        const value =
+            item.booked_time ??
+            item.booking_time ??
+            item.appointment_time ??
+            item.appoint_time ??
+            item.time ??
+            '';
 
-            if (!time) {
-                alert('請選擇有效的預約時段！');
-                btn.innerHTML = '送出預約申請';
-                btn.disabled = false;
+        return String(value).slice(0, 5);
+    }
+
+    function createTimeSlots() {
+        const times = [];
+
+        // 09:00 到 16:30，每 30 分鐘一個時段，包含 16:30
+        for (let minutes = 9 * 60; minutes <= 16 * 60 + 30; minutes += 30) {
+            const hours = String(Math.floor(minutes / 60)).padStart(2, '0');
+            const mins = String(minutes % 60).padStart(2, '0');
+            times.push(`${hours}:${mins}`);
+        }
+
+        return times;
+    }
+
+    async function fetchAvailableTimes() {
+        const date = document.getElementById('appointDate').value;
+        const store = document.getElementById('storeCode').value;
+
+        // 日期或分店尚未準備好
+        if (!date || !store) {
+            generateDefaultTimes();
+            return;
+        }
+
+        setTimeMessage('正在查詢可預約時段…');
+
+        try {
+            // 1. 先確認特殊日期及每週固定營業日
+            const schedule = await checkDateOpen(store, date);
+
+            if (!schedule.isOpen) {
+                setTimeMessage(schedule.message || '此日期公休');
                 return;
             }
 
-            const finalNote = `[線上新客] ${name} (${phone})\n${note ? '留言：' + note : '無其他留言'}`;
+            // 2. 查詢已被預約的時段
+            const bookedTimes = await getBookedTimes(store, date);
+            const bookedSet = new Set(
+                bookedTimes.map(normalizeBookedTime).filter(Boolean)
+            );
+
+            // 3. 產生固定時段，排除已預約時間
+            const availableTimes = createTimeSlots().filter(
+                time => !bookedSet.has(time)
+            );
+
+            renderAvailableTimes(availableTimes);
+
+        } catch (error) {
+            console.error(error);
+            setTimeMessage('時段載入失敗，請更改日期或重新整理');
+            alert(error.message || '無法查詢可預約時段，請稍後再試。');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const dateInput = document.getElementById('appointDate');
+
+        // 最早只能預約明天
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        dateInput.min = formatLocalDate(tomorrow);
+
+        generateDefaultTimes();
+
+        dateInput.addEventListener('change', fetchAvailableTimes);
+
+        // 從網址取得分店，例如 booking.html?store=CWT
+        const urlParams = new URLSearchParams(window.location.search);
+        const storeParam = urlParams.get('store') || 'test';
+        const storeCodeUpper = storeParam.trim().toUpperCase();
+
+        document.getElementById('storeCode').value = storeCodeUpper;
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('stores')
+                .select('store_name')
+                .ilike('store_code', storeCodeUpper)
+                .maybeSingle();
+
+            if (error) {
+                console.error('查詢分店名稱失敗：', error);
+            }
+
+            if (data && data.store_name) {
+                currentStoreName = data.store_name;
+            } else {
+                currentStoreName = storeCodeUpper + ' 門市';
+            }
+
+            document.getElementById('displayStoreName').textContent =
+                currentStoreName;
+
+        } catch (error) {
+            console.error(error);
+            currentStoreName = storeCodeUpper + ' 門市';
+            document.getElementById('displayStoreName').textContent =
+                currentStoreName;
+        }
+    });
+
+    async function submitBooking(event) {
+        event.preventDefault();
+
+        const btn = document.getElementById('btnSubmit');
+        if (btn.disabled) return;
+
+        btn.disabled = true;
+        btn.textContent = '⏳ 傳送中…';
+
+        const name = document.getElementById('guestName').value.trim();
+        const phone = document.getElementById('guestPhone').value.trim();
+        const type = document.getElementById('appointType').value;
+        const date = document.getElementById('appointDate').value;
+        const time = document.getElementById('appointTime').value;
+        const note = document.getElementById('guestNote').value.trim();
+        const store = document.getElementById('storeCode').value;
+
+        try {
+            if (!name || !phone || !date || !time || !store) {
+                throw new Error('請完整填寫所有必填欄位。');
+            }
+
+            // 送出時再次確認營業日，避免用戶端選單過期
+            const schedule = await checkDateOpen(store, date);
+
+            if (!schedule.isOpen) {
+                await fetchAvailableTimes();
+                throw new Error(schedule.message || '此日期目前不開放預約。');
+            }
+
+            // 僅允許固定時段內的時間
+            if (!createTimeSlots().includes(time)) {
+                throw new Error('此預約時段無效，請重新選擇。');
+            }
+
+            // 送出前再次查詢，避免使用已被預約的時段
+            const bookedTimes = await getBookedTimes(store, date);
+            const isTaken = bookedTimes.some(
+                item => normalizeBookedTime(item) === time
+            );
+
+            if (isTaken) {
+                await fetchAvailableTimes();
+                throw new Error('不好意思，這個時段剛剛被別人預約走了，請選擇其他時間。');
+            }
+
+            const finalNote =
+                `[線上新客] ${name} (${phone})\n` +
+                (note ? `留言：${note}` : '無其他留言');
 
             const payload = {
                 store_code: store,
@@ -290,51 +437,64 @@
                 type: type,
                 note: finalNote,
                 status: '待辦',
-                customer_code: null 
+                customer_code: null
             };
 
-            try {
-                // 送出前的終極防呆：確保沒人搶走
-                const { data: checkData } = await supabaseClient
-                    .rpc('get_booked_times', { target_store: store, target_date: date });
-                    
-                if (checkData) {
-                    const isTaken = checkData.some(a => a.booked_time && a.booked_time.substring(0, 5) === time);
-                    if (isTaken) {
-                        alert('不好意思，這個時段剛剛被別人預約走了！請選擇其他時間。');
-                        await fetchAvailableTimes(); 
-                        btn.innerHTML = '送出預約申請';
-                        btn.disabled = false;
-                        return;
-                    }
-                }
+            const { error: insertError } = await supabaseClient
+                .from('appointments')
+                .insert([payload]);
 
-                const { error } = await supabaseClient.from('appointments').insert([payload]);
-                if (error) throw error;
-
-                const startD = new Date(`${date}T${time}:00`);
-                const endD = new Date(startD.getTime() + 60 * 60 * 1000); 
-
-                const sTime = startD.getFullYear().toString() + String(startD.getMonth()+1).padStart(2,'0') + String(startD.getDate()).padStart(2,'0') + 'T' + String(startD.getHours()).padStart(2,'0') + String(startD.getMinutes()).padStart(2,'0') + '00';
-                const eTime = endD.getFullYear().toString() + String(endD.getMonth()+1).padStart(2,'0') + String(endD.getDate()).padStart(2,'0') + 'T' + String(endD.getHours()).padStart(2,'0') + String(endD.getMinutes()).padStart(2,'0') + '00';
-                
-                const calTitle = `【${type}】預約 - ${currentStoreName}`;
-                const calDetails = `您已預約 HearFlow 服務。\n\n預約項目：${type}\n您的備註：${note || '無'}\n\n※ 門市人員會與您聯繫確認最終時間，請留意來電。`;
-                
-                const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calTitle)}&dates=${sTime}/${eTime}&details=${encodeURIComponent(calDetails)}&location=${encodeURIComponent(currentStoreName)}`;
-                
-                document.getElementById('addToCalendarBtn').href = gCalUrl;
-
-                document.getElementById('bookingForm').classList.add('hidden');
-                document.getElementById('successCard').classList.remove('hidden');
-                document.getElementById('successCard').classList.add('flex');
-
-            } catch (err) {
-                alert('預約失敗，請稍後再試：' + err.message);
-                btn.innerHTML = '重新送出預約申請';
-                btn.disabled = false;
+            if (insertError) {
+                throw insertError;
             }
+
+            // 建立 Google 行事曆事件
+            const startDate = new Date(`${date}T${time}:00`);
+            const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+            function toGoogleCalendarDate(dateObject) {
+                return (
+                    dateObject.getFullYear().toString() +
+                    String(dateObject.getMonth() + 1).padStart(2, '0') +
+                    String(dateObject.getDate()).padStart(2, '0') +
+                    'T' +
+                    String(dateObject.getHours()).padStart(2, '0') +
+                    String(dateObject.getMinutes()).padStart(2, '0') +
+                    '00'
+                );
+            }
+
+            const startTime = toGoogleCalendarDate(startDate);
+            const endTime = toGoogleCalendarDate(endDate);
+
+            const calendarTitle = `【${type}】預約 - ${currentStoreName}`;
+            const calendarDetails =
+                `您已預約 HearFlow 服務。\n\n` +
+                `預約項目：${type}\n` +
+                `您的備註：${note || '無'}\n\n` +
+                '※ 門市人員會與您聯繫確認最終時間，請留意來電。';
+
+            const calendarUrl =
+                'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+                `&text=${encodeURIComponent(calendarTitle)}` +
+                `&dates=${startTime}/${endTime}` +
+                `&details=${encodeURIComponent(calendarDetails)}` +
+                `&location=${encodeURIComponent(currentStoreName)}`;
+
+            document.getElementById('addToCalendarBtn').href = calendarUrl;
+            document.getElementById('bookingForm').classList.add('hidden');
+            document.getElementById('successCard').classList.remove('hidden');
+            document.getElementById('successCard').classList.add('flex');
+
+        } catch (error) {
+            console.error('預約失敗：', error);
+            alert('預約失敗：' + (error.message || '請稍後再試。'));
+
+            btn.textContent = '重新送出預約申請';
+            btn.disabled = false;
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
