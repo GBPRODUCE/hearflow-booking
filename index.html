@@ -85,7 +85,7 @@
         <div id="successCard" class="hidden p-10 text-center flex-col items-center justify-center space-y-4">
             <div class="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-2">✓</div>
             <h2 class="text-2xl font-black text-slate-800 tracking-tight">預約送出成功！</h2>
-            <p class="text-slate-500 font-medium">門市人員已收到您的預約資訊。<br>我們將盡快與您聯繫確認最終時間。</p>
+            <p class="text-slate-500 font-medium">如需變更預約請致電門市。<br>如無預約衝突，門市人員會靜待您的到來，不再額外致電確認。</p>
 
             <a id="addToCalendarBtn" target="_blank" rel="noopener noreferrer" href="#"
                 class="mt-4 w-full py-3.5 bg-blue-50 border border-blue-200 text-blue-600 font-bold rounded-xl hover:bg-blue-100 transition flex items-center justify-center gap-2 shadow-sm">
@@ -472,7 +472,7 @@ async function checkDateOpen(store, date) {
                 `您已預約 HearFlow 服務。\n\n` +
                 `預約項目：${type}\n` +
                 `您的備註：${note || '無'}\n\n` +
-                '※ 門市人員會與您聯繫確認最終時間，請留意來電。';
+                '※ 如需變更預約時段請致電門市，感謝您。';
 
             const calendarUrl =
                 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
@@ -481,7 +481,38 @@ async function checkDateOpen(store, date) {
                 `&details=${encodeURIComponent(calendarDetails)}` +
                 `&location=${encodeURIComponent(currentStoreName)}`;
 
-            document.getElementById('addToCalendarBtn').href = calendarUrl;
+            // 判斷是否為 iOS 設備 (包含 iPhone, iPad, iPod 及支援觸控的 Mac)
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+const btn = document.getElementById('addToCalendarBtn');
+
+if (isIOS) {
+    // 產生 .ics 檔案內容供 iOS 內建行事曆讀取
+    // 這裡直接使用原本 toGoogleCalendarDate 產生的 YYYYMMDDTHHMMSS 格式
+    const icsData = 
+        "BEGIN:VCALENDAR\n" +
+        "VERSION:2.0\n" +
+        "BEGIN:VEVENT\n" +
+        "DTSTART:" + startTime + "\n" +
+        "DTEND:" + endTime + "\n" +
+        "SUMMARY:" + calendarTitle + "\n" +
+        "DESCRIPTION:" + calendarDetails.replace(/\n/g, '\\n') + "\n" +
+        "LOCATION:" + currentStoreName + "\n" +
+        "END:VEVENT\n" +
+        "END:VCALENDAR";
+
+    const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+
+    btn.href = url;
+    btn.setAttribute('download', 'appointment.ics');
+    btn.removeAttribute('target'); // 移除 target="_blank"，避免 iOS 擋住下載觸發
+} else {
+    // Android 與電腦版維持使用 Google Calendar 網址
+    btn.href = calendarUrl;
+    btn.setAttribute('target', '_blank');
+    btn.removeAttribute('download');
+}
             document.getElementById('bookingForm').classList.add('hidden');
             document.getElementById('successCard').classList.remove('hidden');
             document.getElementById('successCard').classList.add('flex');
